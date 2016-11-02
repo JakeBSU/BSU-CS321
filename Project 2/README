@@ -1,0 +1,21 @@
+Please do the following before you test your CPUScheduling output
+
+1. Make a directory for this assignment.
+
+2. Implement all your java programs in this directory.
+
+3. Compile all your java files: 
+   javac *.java
+
+4. Copy all files from the directory below to your assignment directory
+   
+   cp /home/faculty/jhyeh/cs321/labs/lab2/files/test/* ./.
+  
+5. To run the test program, execute the following on the command line
+
+   ./run_test probability
+
+   where the argument "probability" can be any value between 0 and 1 (inclusive)
+
+6. After you run the test, if nothing prints out on the screen, 
+   then the test did not detect any error from your CPUScheduling output.
