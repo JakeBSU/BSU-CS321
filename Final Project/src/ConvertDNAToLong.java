@@ -33,7 +33,7 @@ public class ConvertDNAToLong {
     }
 
     public static long convertToLong(String dnaSeq) {
-        Collection<Character> chars = new ArrayList<Character>(dnaSeq.length());
+        Collection<Character> chars = new ArrayList<>(dnaSeq.length());
         for (char chr : dnaSeq.toCharArray())
             chars.add(chr);
 
@@ -65,6 +65,6 @@ public class ConvertDNAToLong {
                     throw new IllegalArgumentException("Invalid byte sequence found in given dnaSeq '" + byt + "'");
             }
         }
-        return output.reverse().toString();
+        return output.reverse().toString().toUpperCase();
     }
 }

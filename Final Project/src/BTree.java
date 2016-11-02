@@ -1,234 +1,303 @@
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.*;
+import java.util.Stack;
 
-public class BTree2 {
+@SuppressWarnings ("WeakerAccess")
+public class BTree {
+    private BTreeNode root, current, next;
+    private TreeWriter writer;
+    private int degree, numNodes, seqLength;
+    private static int debug;
+    private String fName;
 
-    final private int degree;
-    private RandomAccessFile file;
-    final private int maxKeys;
-    private BTreeNode root;
-
-    private class BTreeNode {
-        private int numKeys;
-        private TreeObject[] keys;
-        private BTreeNode[] children;
-        private boolean isLeaf;
-
-        public BTreeNode(int numKeys, boolean isLeaf)
-        {
-            this.numKeys = numKeys;
-            this.isLeaf = isLeaf;
-            keys = new TreeObject[maxKeys];
-            if (isLeaf)
-                children = null;
-            else
-                children = new BTreeNode[maxKeys+1];
-        }
-
-        //TODO write me!
-        private void diskRead()
-        {
-        }
-
-        //TODO WRITE ME!
-        public void diskWrite() throws IOException
-        {
-            for (int i = 0; i < keys.length ; i++) {
-                if(keys[i] != null)
-                    BTree2.this.file.writeLong(keys[i].getKey());
-            }
-        }
-
-        public TreeObject BTreeSearch(TreeObject k)
-        {
-            int i = 0;
-            Long treeKey = k.getKey();
-
-            while (i < numKeys && keys[i].getKey().compareTo(treeKey) < 0) i++;
-
-            if (i < numKeys && keys[i].getKey().compareTo(treeKey) == 0){
-                 keys[i].increaseFrequency();
-                return keys[i];
-//                return new BTreeHandle(this, i); // found it
-            }
-
-            if (isLeaf)
-                return null;    // no child to search
-            else {      // search child index
-                //TODO implement me
-                children[i].diskRead();
-                return children[i].BTreeSearch(k);
-            }
-        }
-
-        private void splitChild(BTreeNode x, int i)
-        {
-            BTreeNode tempNode = new BTreeNode(degree -1, isLeaf);
-
-            // Copy the degree-1 keys in positions degree to 2t-2 into tempNode.
-            for (int j = 0; j < degree -1; j++) {
-                tempNode.keys[j] = keys[j+ degree];
-                keys[j+ degree] = null; // remove the reference
-            }
-
-            // If this BTreeNode is not a isLeaf, copy the degree children in
-            // positions degree to 2t-1, too.
-            if (!isLeaf)
-                for (int j = 0; j < degree; j++) {
-                    tempNode.children[j] = children[j+ degree];
-                    children[j+ degree] = null; // remove the reference
-                }
-
-            numKeys = degree -1;
-
-            // Move the children in x that are to the right of y by
-            // one position to the right.
-            for (int j = x.numKeys; j >= i+1; j--)
-                x.children[j+1] = x.children[j];
-
-            // Drop tempNode into x's child index+1.
-            x.children[i+1] = tempNode;
-
-            // Move the keys in x that are to the right of y by one
-            // position to the right.
-            for (int j = x.numKeys -1; j >= i; j--)
-                x.keys[j+1] = x.keys[j];
-
-            // Move this BTreeNode's median keys into x, and remove the
-            // reference to the keys in this BTreeNode.
-            x.keys[i] = keys[degree -1];
-            keys[degree -1] = null;
-
-            x.numKeys++;      // one more keys/child in x
-
-            // All done.  Write out the nodes.
-            //TODO COMPLETE ME!
-
-            try{
-                diskWrite();
-                tempNode.diskWrite();
-                x.diskWrite();
-            }
-            catch (IOException e){
-                System.out.println(e.getMessage());
-            }
-        }
-
-
-        private void InsertNonfull(TreeObject k)
-        {
-            if(search(k) != null) {
-                return;
-            }
-
-            int i = numKeys -1;
-            Long treeKey = k.getKey();
-
-            if (isLeaf) {
-                // Move all keys greater than k's by one position to
-                // the right.
-                while (i >= 0 && keys[i].getKey().compareTo(treeKey) > 0) {
-                    keys[i+1] = keys[i];
-                    i--;
-                }
-
-                // Either index is -1 or keys[index] is the rightmost keys <=
-                // k's keys.  In either case, drop k into position index+1.
-                keys[i+1] = k;
-
-                numKeys++;
-                try {
-                    diskWrite();
-                } catch (IOException e) {
-                    System.out.println("this should never heppane!");
-                }
-
-                // Return the handle saying where we dropped k.
-//                return new BTreeHandle(this, i+1);
-            }
-            else {
-                // Find which child we descend into.
-                while (i >= 0 && keys[i].getKey().compareTo(treeKey) > 0) i--;
-
-                // Either index is -1 or keys[index] is the rightmost keys <=
-                // k's keys.  In either case, descend into position
-                // index+1.
-                i++;
-                //TODO COMPLETE ME
-                children[i].diskRead();
-
-                if (children[i].numKeys == maxKeys) {
-                    // That child is full, so split it, and possibly
-                    // update index to descend into the new child.
-                    children[i].splitChild(this, i);
-                    if (keys[i].getKey().compareTo(treeKey) < 0)
-                        i++;
-                    else if(keys[i].getKey().compareTo(treeKey) == 0)
-                        keys[i].increaseFrequency();
-                }
-                children[i].InsertNonfull(k);
-            }
-        }
-
-        public String walk(int depth)
-        {
-            String result = "";
-
-            for (int i = 0; i < numKeys; i++) {
-                if (!isLeaf)
-                    result += children[i].walk(depth+1);
-                for (int j = 0; j < depth; j++)
-                    result += "  ";
-                result += "BTreeNode at " + this + ", keys " + i + ": " +
-                        keys[i] + "\n";
-            }
-
-            if (!isLeaf)
-                result += children[numKeys].walk(depth+1);
-
-            return result;
-        }
-    }
-
-    public BTree2(int degree) throws FileNotFoundException
+    public BTree(int degree, int length, String fileName, int debug, int cacheSize)
     {
-        file = new RandomAccessFile("TEST","rwd");
-        this.degree = degree;
-        maxKeys = 2 * degree - 1;
-        root = new BTreeNode(0, true); // root is a isLeaf
-
-        // write the root to disk
-        try {
-            root.diskWrite();
-        } catch (IOException e) {
-            System.out.println("this should never happen");
-        }
-    }
-
-    public Object search(TreeObject k)
-    {
-        return root.BTreeSearch(k);
-    }
-
-    public void insert(TreeObject o)
-    {
-        BTreeNode r = root;
-
-        if (r.numKeys == maxKeys)
-        {
-            BTreeNode s = new BTreeNode(0, false);
-            root = s;
-            s.children[0] = r;
-            r.splitChild(s, 0);
-            s.InsertNonfull(o);
-        }
+        if (degree == 0)
+            this.degree = optimalDegree();
         else
-            r.InsertNonfull(o);
+            this.degree = degree;
+
+        seqLength = length;
+        this.debug = debug;
+        fName = fileName.substring(0, fileName.indexOf('k')+1);
+        File f = new File(fileName);
+        //noinspection ResultOfMethodCallIgnored
+        f.delete();
+
+        try {
+            writer = new TreeWriter(fileName, this.degree, this.seqLength, cacheSize); //setup file to write to
+        }catch (IOException ignored){}
+
+        root = new BTreeNode(this.degree, true, true, 0);
+        numNodes = 1;
     }
 
-    public String toString()
+    public BTree(File bTreeFile, int degree, int seqLength, int debug, int cacheSize) {
+        try {
+            writer = new TreeWriter(bTreeFile.getName(), degree, seqLength, cacheSize);
+        }catch (IOException ignored){}
+
+        this.debug = debug;
+        fName = bTreeFile.getName().substring(0,bTreeFile.getName().indexOf('k')+1);
+
+        try
+        {
+            this.degree = writer.readDegree();
+            int rootIndex = writer.readRootIndex();
+            this.seqLength = writer.readSeqLength();
+
+            if (this.degree != degree && seqLength != this.seqLength)
+                throw new IllegalStateException("The specified degree & sequence length doesn't match the ones in the file");
+
+            root = writer.diskRead(rootIndex,degree);
+            root.setRoot(true);
+        } catch (IOException e) {System.out.println("can't open bTreeFile");}
+    }
+
+
+
+    private void splitChild(BTreeNode parent, BTreeNode nodeToSplit, int index) {
+        if(parent.isFull() || !nodeToSplit.isFull())
+            throw new IllegalStateException();
+
+        if(debug == 0)
+            System.err.println("Child split with parent node " + parent.getNodeIndex() + ", split indexes: " +
+                    nodeToSplit.getNodeIndex() +" & " + index);
+
+        BTreeNode newChild = new BTreeNode(degree, false, nodeToSplit.isLeaf(), numNodes);
+        numNodes++;
+
+        if(debug == 0)
+            System.err.println("New child node: " + newChild.getNodeIndex() + " -> Parent: " +parent.getNodeIndex());
+
+        for (int p = nodeToSplit.keys.size() - 1; p > degree - 1; p--) {
+            newChild.keys.add(0, nodeToSplit.keys.remove(p));
+        }
+
+        if (!nodeToSplit.isLeaf()) {
+            for (int j = nodeToSplit.children.size() - 1; j >= degree; j--) {
+                newChild.children.add(0, nodeToSplit.children.remove(j));
+            }
+        }
+
+        parent.children.add(index + 1, newChild.getNodeIndex());
+        newChild.setParent(parent.getNodeIndex());
+        parent.keys.add(index, nodeToSplit.keys.remove(degree - 1));
+
+        try {
+            writer.diskWrite(parent, false);
+            writer.diskWrite(nodeToSplit, false);
+            writer.diskWrite(newChild, false);
+        } catch (IOException e){e.printStackTrace();}
+    }
+
+    private void insertNonfull(TreeObject o) throws IOException
     {
-        return root.walk(0);
+        current = root;
+        Long treeKey = o.getKey();
+
+        while (true)
+        {
+            int index = current.keys.size() - 1;
+            if (current.isLeaf())
+            {
+                while (index >= 0 && treeKey.compareTo(current.keys.get(index).getKey()) <= 0)
+                {
+                    if (treeKey.compareTo(current.keys.get(index).getKey()) == 0)
+                    {
+                        current.keys.get(index).increaseFrequency();
+                        writer.diskWrite(current, false);
+                        if(debug == 0)
+                            System.err.println("Seq: " +
+                                    ConvertDNAToLong.convertFromLong(treeKey) + ", Freq: "
+                                    + current.keys.get(index).getFrequency()
+                                    + ", Node: " + current.getNodeIndex());
+                        return;
+                    }
+                    index--;
+                }
+                current.keys.add(index + 1, o);
+                if(debug == 0)
+                    System.err.println("Inserted " + ConvertDNAToLong.convertFromLong(treeKey) +
+                            " at node " + current.getNodeIndex() );
+
+                writer.diskWrite(current, false);
+                break;
+            } //END OF current.isLef()
+            else
+            {
+                while (index >= 0 && treeKey.compareTo(current.keys.get(index).getKey()) <= 0)
+                {
+                    if (treeKey.compareTo(current.keys.get(index).getKey()) == 0)
+                    {
+                        current.keys.get(index).increaseFrequency();
+                        writer.diskWrite(current, false);
+
+                        if(debug == 0)
+                            System.err.println("Seq: " +
+                                    ConvertDNAToLong.convertFromLong(treeKey) + ", Freq: " +
+                                    current.keys.get(index).getFrequency()
+                                    + ", Node: " + current.getNodeIndex());
+
+                        return;
+                    }
+                    index--;
+                }
+                index++;
+                next = writer.diskRead(current.children.get(index), degree);
+                if (next.isFull())
+                {
+                    splitChild(current, next, index);
+                    if (treeKey.compareTo(current.keys.get(index).getKey()) == 0)
+                    {
+                        current.keys.get(index).increaseFrequency();
+                        writer.diskWrite(current, false);
+                        if(debug == 0)
+                            System.err.println("Seq: " +
+                                    ConvertDNAToLong.convertFromLong(treeKey) + ", Freq: " +
+                                    current.keys.get(index).getFrequency()
+                                    + ", Node: " + current.getNodeIndex());
+
+                        return;
+                    } else if (treeKey.compareTo(current.keys.get(index).getKey()) > 0)
+                        next = writer.diskRead(current.children.get(index + 1), degree);
+                }
+                current = next;
+            } //END of else block
+        }
+    }
+
+    public void insert(TreeObject o) throws IOException {
+        if (root.isFull()) {
+            next = root;
+
+            root = new BTreeNode(degree, true, false, numNodes++);
+            root.children.add(0, next.getNodeIndex());
+            next.setParent(root.getNodeIndex());
+            next.setRoot(false);
+
+            if(debug == 0)
+                System.err.println("New root node: " + root.getNodeIndex());
+
+            splitChild(root, next, 0);
+            insertNonfull(o);
+        } else
+            insertNonfull(o);
+    }
+
+    private int nodeSearch(BTreeNode node, TreeObject searchKey)
+            throws IOException {
+        current = node;
+        Long key = searchKey.getKey();
+        while (true) {
+            int i = 0;
+            while (i < current.keys.size()
+                    && key.compareTo(current.keys.get(i).getKey()) > 0){
+                i++;
+            }
+
+            if (i < current.keys.size()
+                    && key.compareTo(current.keys.get(i).getKey()) == 0)
+            {
+                return current.keys.get(i).getFrequency();
+            }
+
+            if (current.isLeaf()) {
+                return 0; // case where sequence is not found
+            } else {
+                current = writer.diskRead(current.children.get(i), degree);
+            }
+        }
+    }
+
+    public void writeTree() {
+        try{
+            writer.flushTree(current,next,root);
+        } catch (IOException e){e.printStackTrace();}
+    }
+
+    public int search(TreeObject o) throws IOException {
+        return nodeSearch(root, o);
+    }
+
+    public void writeDumpFile() throws IOException
+    {
+        boolean traversing = true;
+        current = root;
+        Stack<Integer> children = new Stack<>();
+        Stack<Integer> treeNodes = new Stack<>();
+        FileOutputStream outFileStream = new FileOutputStream(new File("dump.txt"));
+        PrintWriter outStream = new PrintWriter(outFileStream);
+        int childIndex = 0;
+
+        outStream.write("BTree Info:\n----------\nDegree: " + degree + "\nSequence length: " + seqLength
+                + "\nGenebank file: " + fName + "\n\n");
+
+        while (traversing)
+        {
+            if (childIndex == current.children.size() && !current.isLeaf())
+            {
+                if (treeNodes.isEmpty() && children.isEmpty())
+                {
+                    traversing = false;
+                    continue;
+                }
+                else
+                {
+                    current = this.writer.diskRead(treeNodes.pop(), degree);
+                    childIndex = children.pop();
+
+                    if (childIndex < current.keys.size())
+                    {
+                        outStream.write(current.keys.get(childIndex).toString());
+                        outStream.println();
+                    }
+                    childIndex++;
+                    continue;
+                }
+            }
+
+            if (current.isLeaf())
+            {
+                for (int i = 0; i < current.keys.size() ; i++)
+                {
+                    outStream.write(current.keys.get(i).toString());
+                    outStream.println();
+                }
+
+                if (current == root) break;
+                current = this.writer.diskRead(treeNodes.pop(), degree);
+                childIndex = children.pop();
+
+                if (childIndex < current.keys.size())
+                {
+                    outStream.write(current.keys.get(childIndex).toString());
+                    outStream.println();
+                }
+                childIndex++;
+            }
+            else
+            {
+                treeNodes.push(current.getNodeIndex());
+                children.push(childIndex);
+                current = writer.diskRead(current.children.get(childIndex),degree);
+                childIndex = 0;
+            }
+        }
+        outStream.close();
+    }
+
+    public static int optimalDegree() {
+        int dbSize = 4096;
+        int fineD = 0;
+        int nodeSize = 0;
+
+        while (nodeSize <= dbSize) {
+            nodeSize = TreeWriter.getNodeSize(++fineD);
+        }
+
+        fineD--;
+        if (debug == 0)
+            System.out.println("An optimal degree of " + fineD + " has been found");
+        return fineD;
     }
 }
