@@ -1,0 +1,116 @@
+*****************************************************************************************************************
+CS321 Data Structures: lab4 
+Team Programming Project: Bioinformatics
+
+December 10, 2016 (late)
+
+	Marshall Eddy
+	Jayden Weaver
+	Benjamin Hetz
+******************************************************************************************************************
+
+Files:
+
+	Btree.java: An implementation of a BTree for GeneBanks.
+		inner class (BTreeNode): A Node class used by the BTree.
+	
+	TreeObject.java: Object class used by BTree.java.
+	
+	BTreeCacheNode.java: Cache for BTreeNode.
+		inner class (BTreeCache): Cache for BTree.
+	
+	GeneBankconvert.java: Class to represent Gene Sequences (converts from String to binary long).
+	
+	GeneBankCreateBTree.java: Creates the BTree for the GeneBank with all the Gene Sequences.
+	
+	GeneBankSearch.java: Searches the BTree and prints the frequency of each Gene Sequence found.
+	
+	README: This document.
+	
+
+
+Compile:
+	$ javac *.java
+
+Run:
+
+	GeneBankCreateBTree.java:
+		$ java GeneBankCreateBTree <cache> <degree> <gbk file> <sequence length> [<cache size>] [<debug level>]
+		
+		
+	**GeneBankCreateBTree must be run first, as a BTree file is a require argument for GeneBankSearch**	
+	GeneBankSearch.java:
+		$ java GeneBankSearch <cache> <btree file> <query file> [<cache size>] [<debug level>]
+
+
+
+Timing Results:
+
+	GenebankCreateBTree:
+	
+		$ time java GeneBankCreateBTree 0 0 test3.gbk 7 0
+		real        1m 9.985s
+    	user        0m 20.744s
+   		sys         0m 49.314s
+
+		$ time java GeneBankCreateBTree 1 0 test3.gbk 7 100 0
+		real        0m 35.948s
+    	user        0m 10.419s
+   		sys         0m 25.940s
+
+		$ time java GeneBankCreateBTree 1 0 test3.gbk 7 500 0
+		real        0m 34.764s
+    	user        0m 9.911s
+   		sys         0m 25.273s
+	
+		Using a cache level of 100 shows significant improvements in real, user and sys time versus no cache. 
+		Using a cache level of 500 also shows significant improvements in real, user, and sys time versus no cache, but
+		only a small difference (less than a second) between 500 and 100 cache levels.
+	
+	GenebankSearch:
+	
+		$ time java GeneBankSearch 0 test3.gbk.btree.data.7.128 query7 0
+		real        0m 24.652s
+    	user        0m 8.049s
+   		sys         0m 15.75s
+
+		$ time java GeneBankSearch 0 test3.gbk.btree.data.7.128 query7 100 0
+		real        0m 24.337s
+    	user        0m 8.009s
+   		sys         0m 15.530s
+
+		$ time java GeneBankSearch 0 test3.gbk.btree.data.7.128 query7 500 0
+		real        0m 23.382s
+    	user        0m 7.881s
+   		sys         0m 15.363s
+	
+		There is not really any significant time differences between no cache, a cache size of 100, and a cache size of 500.
+		The difference is within .2 seconds for all three types.
+		
+		
+		
+BTree Design:
+
+The program uses a few different classes to accomplish the end goal. These classes are
+BTree, BTreeCacheNode, GeneBankConvert, GeneBankCreateBTree, GeneBankSearch, and
+TreeObject. The BTree will write meta-data, containing the size, degree, and offset
+of the root note to the disk. The meta-data for each node, containing the isLeaf variable
+and the number of keys, is then written. Each node contains a linked list of child pointers
+and TreeObjects, its offset and the offset of its parent. All of this information is then
+used to move nodes when manipulating the BTree.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
